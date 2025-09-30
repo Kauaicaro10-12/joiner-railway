@@ -2,7 +2,18 @@ import discord
 import requests
 import re
 
-TOKEN = ""  # Coloque seu token do Discord aqui
+import os
+import discord
+
+TOKEN = os.environ["DISCORD_TOKEN"]
+
+client = discord.Client(intents=discord.Intents.default())
+
+@client.event
+async def on_ready():
+    print("Bot online!")
+
+client.run(TOKEN)
 CHANNEL_ID = 1418832448229212301  # Coloque o ID do canal
 
 BACKEND_URL = "https://aj-production.up.railway.app/job"
