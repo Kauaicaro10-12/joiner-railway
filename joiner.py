@@ -3,7 +3,7 @@ import requests
 import re
 
 import os
-TOKEN = os.environ["DISCORD_TOKEN"]
+TOKEN = os.environ[DISCORD_TOKEN]
 CHANNEL_ID = 1418832448229212301  # Coloque o ID do canal
 
 BACKEND_URL = "https://aj-production.up.railway.app/job"
