@@ -7,7 +7,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.environ["DISCORD_TOKEN"]
-CHANNEL_ID = 1420108999075958888  # Substitua se necessário
+CHANNEL_ID = 1420109016373268632  # Substitua se necessário
 BACKEND_URL = "https://aj-production.up.railway.app/job"
 
 intents = discord.Intents.default()
