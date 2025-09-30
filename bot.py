@@ -15,45 +15,46 @@ intents.message_content = True
 
 client = discord.Client(intents=intents)
 
-def send_job(pet_name, money_per_sec, job_id):
-    payload = {
-        "petName": pet_name,
-        "moneyPerSec": money_per_sec,
-        "jobIdMobile": job_id
-    }
-    try:
-        resp = requests.post(BACKEND_URL, json=payload)
-        logging.info(f"Enviado para backend: {payload} | Resposta: {resp.text}")
-    except Exception as e:
-        logging.error(f"Erro ao enviar payload: {e}")
-
-def extract_info(text):
+def send_jobs(jobs_list):
     """
-    Extrai pet name, money per sec e job id de um texto.
-    Espera formato tipo:
-      🏷 Nome: Spaghetti Tualetti
-      💰 Money: $540M/s
-      🔢 Job ID: LENNRANDA_...
+    Envia uma lista de jobs para o backend em sequência.
     """
-    pet_name = None
-    money_per_sec = None
-    job_id = None
+    for job in jobs_list:
+        payload = {
+            "petName": job["petName"],
+            "moneyPerSec": job["moneyPerSec"],
+            "jobIdMobile": job["jobIdMobile"]
+        }
+        try:
+            resp = requests.post(BACKEND_URL, json=payload)
+            logging.info(f"Enviado para backend: {payload} | Resposta: {resp.text}")
+        except Exception as e:
+            logging.error(f"Erro ao enviar payload: {e}")
 
-    # Pet name
-    match = re.search(r"Nome:\s*\*?([^\n*]+)", text)
-    if match:
+def extract_infos(text):
+    """
+    Extrai múltiplos pets/moneys/jobids de um texto. Espera blocos tipo:
+      🏷 Nome: ...
+      💰 Money: ...
+      🔢 Job ID: ...
+    """
+    jobs = []
+    # Encontrar todos os blocos usando regex multi-linha
+    pattern = re.compile(
+        r"Nome:\s*([^\n]+)\n.*?Money:\s*([^\n]+)\n.*?Job ID:\s*([A-Za-z0-9_\-]+)", re.MULTILINE
+    )
+    for match in pattern.finditer(text):
         pet_name = match.group(1).strip()
-    # Money per sec
-    match = re.search(r"Money:\s*\**([^\n*]+)", text)
-    if match:
-        money_per_sec = match.group(1).strip()
-    # Job ID
-    match = re.search(r"Job ID:\s*\**([A-Za-z0-9_\-]+)", text)
-    if match:
-        job_id = match.group(1).strip()
-    return pet_name, money_per_sec, job_id
+        money_per_sec = match.group(2).strip()
+        job_id = match.group(3).strip()
+        jobs.append({
+            "petName": pet_name,
+            "moneyPerSec": money_per_sec,
+            "jobIdMobile": job_id
+        })
+    return jobs
 
-def extract_info_from_embed(embed):
+def extract_infos_from_embed(embed):
     search_locations = []
     if embed.title:
         search_locations.append(embed.title)
@@ -65,11 +66,10 @@ def extract_info_from_embed(embed):
                 search_locations.append(field.value)
     if embed.footer and hasattr(embed.footer, "text"):
         search_locations.append(embed.footer.text)
+    jobs = []
     for text in search_locations:
-        pet_name, money_per_sec, job_id = extract_info(text)
-        if pet_name and money_per_sec and job_id:
-            return pet_name, money_per_sec, job_id
-    return None, None, None
+        jobs.extend(extract_infos(text))
+    return jobs
 
 @client.event
 async def on_ready():
@@ -79,20 +79,13 @@ async def on_ready():
 async def on_message(message):
     if message.channel.id != CHANNEL_ID:
         return
+    jobs = []
     if message.embeds:
         for embed in message.embeds:
-            pet_name, money_per_sec, job_id = extract_info_from_embed(embed)
-            if pet_name and money_per_sec and job_id:
-                send_job(pet_name, money_per_sec, job_id)
-            else:
-                logging.warning("--- Embed sem todos os dados ---")
-                try:
-                    logging.warning(embed.to_dict())
-                except Exception:
-                    pass
+            jobs.extend(extract_infos_from_embed(embed))
     else:
-        pet_name, money_per_sec, job_id = extract_info(message.content)
-        if pet_name and money_per_sec and job_id:
-            send_job(pet_name, money_per_sec, job_id)
+        jobs.extend(extract_infos(message.content))
+    if jobs:
+        send_jobs(jobs)
 
 client.run(TOKEN)
