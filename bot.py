@@ -7,7 +7,6 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.environ["DISCORD_TOKEN"]
-
 CHANNEL_ID = 1420108999075958888  # Substitua se necessário
 BACKEND_URL = "https://aj-production.up.railway.app/job"
 
@@ -16,26 +15,45 @@ intents.message_content = True
 
 client = discord.Client(intents=intents)
 
-def send_job(job_id):
+def send_job(pet_name, money_per_sec, job_id):
+    payload = {
+        "petName": pet_name,
+        "moneyPerSec": money_per_sec,
+        "jobIdMobile": job_id
+    }
     try:
-        resp = requests.post(BACKEND_URL, json={"jobIdMobile": job_id})
-        logging.info(f"Enviado para backend: {job_id} | Resposta: {resp.text}")
+        resp = requests.post(BACKEND_URL, json=payload)
+        logging.info(f"Enviado para backend: {payload} | Resposta: {resp.text}")
     except Exception as e:
-        logging.error(f"Erro ao enviar jobId: {e}")
+        logging.error(f"Erro ao enviar payload: {e}")
 
-def extract_job_id(text):
+def extract_info(text):
     """
-    Aceita tanto Job ID em formato UUID quanto criptografado (LENNRANDA_...).
+    Extrai pet name, money per sec e job id de um texto.
+    Espera formato tipo:
+      🏷 Nome: Spaghetti Tualetti
+      💰 Money: $540M/s
+      🔢 Job ID: LENNRANDA_...
     """
-    match = re.search(
-        r"Job ID:\s*['\"]?((?:[a-fA-F0-9\-]{36})|(?:LENNRANDA_[A-Za-z0-9]+))['\"]?",
-        text
-    )
+    pet_name = None
+    money_per_sec = None
+    job_id = None
+
+    # Pet name
+    match = re.search(r"Nome:\s*\*?([^\n*]+)", text)
     if match:
-        return match.group(1).strip()
-    return None
+        pet_name = match.group(1).strip()
+    # Money per sec
+    match = re.search(r"Money:\s*\**([^\n*]+)", text)
+    if match:
+        money_per_sec = match.group(1).strip()
+    # Job ID
+    match = re.search(r"Job ID:\s*\**([A-Za-z0-9_\-]+)", text)
+    if match:
+        job_id = match.group(1).strip()
+    return pet_name, money_per_sec, job_id
 
-def extract_job_id_from_embed(embed):
+def extract_info_from_embed(embed):
     search_locations = []
     if embed.title:
         search_locations.append(embed.title)
@@ -48,10 +66,10 @@ def extract_job_id_from_embed(embed):
     if embed.footer and hasattr(embed.footer, "text"):
         search_locations.append(embed.footer.text)
     for text in search_locations:
-        job_id = extract_job_id(text)
-        if job_id:
-            return job_id
-    return None
+        pet_name, money_per_sec, job_id = extract_info(text)
+        if pet_name and money_per_sec and job_id:
+            return pet_name, money_per_sec, job_id
+    return None, None, None
 
 @client.event
 async def on_ready():
@@ -61,21 +79,20 @@ async def on_ready():
 async def on_message(message):
     if message.channel.id != CHANNEL_ID:
         return
-    job_id = None
     if message.embeds:
         for embed in message.embeds:
-            job_id = extract_job_id_from_embed(embed)
-            if job_id:
-                send_job(job_id)
+            pet_name, money_per_sec, job_id = extract_info_from_embed(embed)
+            if pet_name and money_per_sec and job_id:
+                send_job(pet_name, money_per_sec, job_id)
             else:
-                logging.warning("--- Embed sem Job ID ---")
+                logging.warning("--- Embed sem todos os dados ---")
                 try:
                     logging.warning(embed.to_dict())
                 except Exception:
                     pass
     else:
-        job_id = extract_job_id(message.content)
-        if job_id:
-            send_job(job_id)
+        pet_name, money_per_sec, job_id = extract_info(message.content)
+        if pet_name and money_per_sec and job_id:
+            send_job(pet_name, money_per_sec, job_id)
 
 client.run(TOKEN)
