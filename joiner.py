@@ -2,7 +2,8 @@ import discord
 import requests
 import re
 
-TOKEN = ""  # Coloque seu token do Discord aqui
+import os
+TOKEN = os.environ["DISCORD_TOKEN"]
 CHANNEL_ID = 1418832448229212301  # Coloque o ID do canal
 
 BACKEND_URL = "https://aj-production.up.railway.app/job"
