@@ -8,14 +8,6 @@ logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.environ["DISCORD_TOKEN"]
 
-client = discord.Client(intents=discord.Intents.default())
-
-@client.event
-async def on_ready():
-    print("Bot online!")
-
-client.run(TOKEN)
-
 CHANNEL_ID = 1420108999075958888  # Substitua se necessário
 BACKEND_URL = "https://aj-production.up.railway.app/job"
 
